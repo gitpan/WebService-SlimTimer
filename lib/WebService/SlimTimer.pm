@@ -6,6 +6,7 @@ package WebService::SlimTimer;
 # ABSTRACT: Provides interface to SlimTimer web service.
 
 
+
 use Moose;
 use MooseX::Method::Signatures;
 use Moose::Util::TypeConstraints;
@@ -138,9 +139,12 @@ method _get_tasks_uri(Int $task_id?)
 }
 
 
-method list_tasks
+method list_tasks(Bool $include_completed = 1)
 {
     my $tasks_entries = $self->_request(GET => $self->_get_tasks_uri,
+                params => {
+                    show_completed => $include_completed ? 'yes' : 'no'
+                },
                 error => "Failed to get the tasks list"
             );
 
@@ -308,14 +312,29 @@ WebService::SlimTimer - Provides interface to SlimTimer web service.
 
 =head1 VERSION
 
-version 0.001
+version 0.002
 
 =head1 SYNOPSIS
 
 This module provides interface to L<http://www.slimtimer.com/> functionality.
 
 Notice that to use it you must obtain an API key by creating an account at
-SlimTimer web site.
+SlimTimer web site and then visit L<http://slimtimer.com/help/api>.
+
+    my $st = WebService::SlimTimer->new($api_key);
+    $st->login('your@email.address', 'secret-password');
+
+    # Create a brand new task.
+    my $task = $st->create_task('Testing SlimTimer');
+
+    # Spend 10 minutes on testing.
+    $st->create_entry($task->id, DateTime->now, DateTime->from_epoch(time() + 600));
+
+    # Mark the task as completed.
+    $st->complete_task($task->id, DateTime->now());
+
+    # Or maybe even get rid of it now.
+    $st->delete_task($task->id);
 
 =head1 METHODS
 
@@ -323,28 +342,50 @@ SlimTimer web site.
 
 Logs in to SlimTimer using the provided login and password.
 
+    $st->login('your@email.address', 'secret-password');
+
 This method must be called before doing anything else with this object.
 
 =head2 list_tasks
 
-Returns the list of all tasks involving the logged in user, completed or not.
+Returns the list of all tasks involving the logged in user:
+
+    my @tasks = $st->list_tasks();
+
+By default all tasks are returned, even the completed ones. Passing a false
+value as parameter excludes the completed tasks:
+
+    my @active_tasks = $st->list_tasks(0);
 
 =head2 create_task
 
-Create a new task with the given name.
+Create a new task with the given name and returns the new
+L<WebService::SlimTimer::Tasl> object on success.
+
+    my $task = $st->create_task('Test Task');
+    ... Use $task->id with the other methods ...
 
 =head2 delete_task
 
 Delete the task with the given id (presumably previously obtained from
 L<list_tasks>).
 
+    $st->delete_task($task->id);
+
 =head2 get_task
 
 Find the given task by its id.
 
+    my $task = $st->get_task(task_id);
+
+While there is no direct way to obtain a task id using this module, it could
+be cached locally from a previous program execution, for example.
+
 =head2 complete_task
 
 Mark the task with the given id as being completed.
+
+    $st->complete_task($task->id, DateTime->now);
 
 =head2 list_entries
 
@@ -353,6 +394,20 @@ Return all the time entries.
 If the optional C<start> and/or C<end> parameters are specified, returns only
 the entries that begin after the start date and/or before the end one.
 
+    # List all entries: potentially very time-consuming.
+    my @entries = $st->list_entries;
+
+    # List entries started today.
+    my $today = DateTime->now;
+    $today->set(hour => 0, minute => 0, second => 0);
+    my @today_entries = $st->list_entries(start => $today);
+
+    # List entries started in 2010.
+    my @entries_2010 = $st->list_entries(
+        start => DateTime->new(year => 2010),
+        end => DateTime->new(year => 2011)
+    );
+
 =head2 list_task_entries
 
 Return all the time entries for the given task.
@@ -360,13 +415,25 @@ Return all the time entries for the given task.
 Just as L<list_entries>, this method accepts optional C<start> and C<end>
 parameters to restrict the dates of the entries retrieved.
 
+    my @today_work_on_task = $st->list_entries($task->id, start => $today);
+
 =head2 get_entry
 
 Find the given time entry by its id.
 
+    my $entry = $st->get_entry($entry_id);
+
+As with C<get_task()>, it only makes sense to use this method if the id comes
+from a local cache.
+
 =head2 create_entry
 
 Create a new time entry.
+
+    my $day_of_work = $st->create_entry($task->id,
+            DateTime->now->set(hour => 9, minute => 0, second = 0),
+            DateTime->now->set(hour => 17, minute => 0, second = 0)
+        );
 
 Notice that the time stamps should normally be in UTC and not local time or
 another time zone.
@@ -379,9 +446,27 @@ Returns the entry that was created.
 
 Changes an existing time entry.
 
+    # Use more realistic schedule.
+    $st->update_entry($day_of_work->id, $task->id,
+            DateTime->now->set(hour => 11, minute => 0, second = 0)
+            DateTime->now->set(hour => 23, minute => 0, second = 0)
+        );
+
 =head2 delete_entry
 
 Deletes a time entry.
+
+    $st->delete_entry($day_of_work->id);
+
+=head1 CONSTRUCTOR
+
+The single required constructor argument is the API key required to connect to
+SlimTimer:
+
+    my $st = WebService::SlimTimer->new('123456789abcdef123456789abcdef');
+
+The validity of the API key is not checked here but using an invalid key will
+result in a failure to C<login()> later.
 
 =head1 SEE ALSO
 
