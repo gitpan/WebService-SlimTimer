@@ -11,10 +11,45 @@ use warnings;
 use DateTime;
 use File::Spec;
 use File::Slurp;
+use Getopt::Long::Descriptive;
 use YAML::XS;
 
 use WebService::SlimTimer;
 
+# Parse the command line first.
+my ($opt, $usage) = describe_options(
+        '%c %o [start-date [end-date]]',
+        [ 'task|t=s'    => 'Only report time spent on the specified task.' ],
+        [ 'help'        => 'Print usage message and exit.' ]
+    );
+
+print($usage->text), exit if $opt->help;
+
+my %range;
+if ( @ARGV > 2 ) {
+    die "Too many arguments.\nUsage: " . $usage->text
+}
+
+if ( @ARGV > 0 ) {
+    use DateTime::Format::Natural;
+
+    my $parser = DateTime::Format::Natural->new;
+
+    $range{start} = $parser->parse_datetime($ARGV[0]);
+    if ( !$parser->success ) {
+        die "Incorrect start date: " . $parser->error . "\n"
+    }
+
+    if ( @ARGV == 2 ) {
+        $range{end} = $parser->parse_datetime($ARGV[1]);
+        if ( !$parser->success ) {
+            die "Incorrect end date: " . $parser->error . "\n"
+        }
+    }
+}
+
+
+# Check the config file next, we need it to do anything non-trivial.
 my $config_file;
 if ( $^O eq 'MSWin32' ) {
     $config_file = File::Spec->catfile($ENV{APPDATA}, "slimtimer.ini");
@@ -50,60 +85,65 @@ for (qw(api_key login password)) {
 my $st = WebService::SlimTimer->new($config->{api_key});
 $st->login($config->{login}, $config->{password});
 
-my %range;
-if ( @ARGV > 2 ) {
-    die "Too many arguments.\nUsage: $0 [start-date [end-date]]\n"
-}
-
-if ( @ARGV > 0 ) {
-    use DateTime::Format::Natural;
-
-    my $parser = DateTime::Format::Natural->new;
-
-    $range{start} = $parser->parse_datetime($ARGV[0]);
-    if ( !$parser->success ) {
-        die "Incorrect start date: " . $parser->error . "\n"
-    }
-
-    if ( @ARGV == 2 ) {
-        $range{end} = $parser->parse_datetime($ARGV[1]);
-        if ( !$parser->success ) {
-            die "Incorrect end date: " . $parser->error . "\n"
+my $task_id;
+if ( my $task_name = $opt->task ) {
+    for ($st->list_tasks()) {
+        if ( $_->name eq $task_name ) {
+            $task_id = $_->id;
+            last
         }
     }
+
+    die qq{Task with the name "$task_name" not found.\n}
+        unless defined $task_id;
+
+    my @entries = $st->list_task_entries($task_id, %range);
+
+    my $duration;
+    map { $duration += $_->duration } @entries;
+
+    print qq{Time spent on "$task_name": } . format_time($duration) . "\n";
+}
+else { # Report for all tasks.
+    my @entries = $st->list_entries(%range);
+
+    my (%durations, %task_names);
+    for (@entries) {
+        $durations{$_->task_id} += $_->duration;
+        $task_names{$_->task_id} = $_->task_name;
+    }
+
+    print '-' x 50 . "\n";
+    printf "%-40s%10s\n", 'Task', 'Time';
+    print '-' x 50 . "\n";
+
+    sub report_one_task
+    {
+        my ($name, $duration) = @_;
+        printf "%-40s%4d:%02d:%02d\n", $name, format_time($duration)
+    }
+
+    my $total = 0;
+    for (sort { $task_names{$a} cmp $task_names{$b} } keys %durations) {
+        report_one_task($task_names{$_}, $durations{$_});
+        $total += $durations{$_};
+    }
+
+    print '-' x 50 . "\n";
+
+    report_one_task('Total', $total);
 }
 
-my @entries = $st->list_entries(%range);
+exit 0;
 
-my (%durations, %task_names);
-for (@entries) {
-    $durations{$_->task_id} += $_->duration;
-    $task_names{$_->task_id} = $_->task_name;
-}
-
-print '-' x 50 . "\n";
-printf "%-40s%10s\n", 'Task', 'Time';
-print '-' x 50 . "\n";
-
-sub report_one_task
+sub format_time
 {
-    my ($name, $seconds) = @_;
-    printf "%-40s%4d:%02d:%02d\n",
-        $name,
-        $seconds / 3600,
-        ($seconds % 3600) / 60,
-        $seconds % 60;
+    my ($duration) = @_;
+    sprintf "%4d:%02d:%02d",
+        $duration / 3600,
+        ($duration % 3600) / 60,
+        $duration % 60
 }
-
-my $total = 0;
-for (sort { $task_names{$a} cmp $task_names{$b} } keys %durations) {
-    report_one_task($task_names{$_}, $durations{$_});
-    $total += $durations{$_};
-}
-
-print '-' x 50 . "\n";
-
-report_one_task('Total', $total);
 
 __END__
 =pod
@@ -114,11 +154,11 @@ slimtimer-report - Simple script to report all SlimTimer entries in the given in
 
 =head1 VERSION
 
-version 0.002
+version 0.003
 
 =head1 SYNOPSIS
 
-slimtimer-report [start-date [end-date]]
+slimtimer-report [-t|--task name] [start-date [end-date]]
 
 For example:
 
@@ -126,9 +166,12 @@ For example:
 
 =head1 DESCRIPTION
 
-Output a table summarizing all entries in the given time interval as well as
-the total time spent on all of them. The times in the output are given in
-HH:MM:SS format.
+Without the task option, output a table summarizing all entries in the given
+time interval as well as the total time spent on all of them.
+
+With the task option only output the time spent on the specified task.
+
+The times in the output are always given in HH:MM:SS format.
 
 =head1 OPTIONS
 

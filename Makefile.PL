@@ -30,6 +30,7 @@ my %WriteMakefileArgs = (
     'DateTime::Format::RFC3339' => '0',
     'File::Slurp' => '0',
     'File::Spec' => '0',
+    'Getopt::Long::Descriptive' => '0',
     'LWP::UserAgent' => '0',
     'Moose' => '0',
     'Moose::Util::TypeConstraints' => '0',
@@ -40,7 +41,7 @@ my %WriteMakefileArgs = (
     'YAML::XS' => '0',
     'debug' => '0'
   },
-  'VERSION' => '0.002',
+  'VERSION' => '0.003',
   'test' => {
     'TESTS' => 't/*.t'
   }

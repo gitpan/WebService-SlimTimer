@@ -51,7 +51,7 @@ method _submit($req, Str $error)
 {
     my $res = $self->_user_agent->request($req);
 
-    debug::log("*** Received " . $res->content) if DEBUG;
+    debug::log(DateTime->now() . ": received " . $res->content) if DEBUG;
 
     if ( !$res->is_success ) {
         die "$error: " . $res->status_line
@@ -72,7 +72,7 @@ method _request(Str $method, Str $url, Str :$error!, HashRef :$params)
           );
     my $req = HTTP::Request->new($method, $uri);
 
-    debug::log("*** About to request " . $req->as_string) if DEBUG;
+    debug::log(DateTime->now() . ": about to request " . $req->as_string) if DEBUG;
 
     $req->header(Accept => 'application/x-yaml');
 
@@ -94,7 +94,7 @@ method _post(Str $method, Str $url, HashRef $params, Str :$error!)
 
     $req->content(Dump($params));
 
-    debug::log("*** About to post " . $req->as_string) if DEBUG;
+    debug::log(DateTime->now() . ": about to post " . $req->as_string) if DEBUG;
 
     $req->header(Accept => 'application/x-yaml');
     $req->content_type('application/x-yaml');
@@ -312,7 +312,7 @@ WebService::SlimTimer - Provides interface to SlimTimer web service.
 
 =head1 VERSION
 
-version 0.002
+version 0.003
 
 =head1 SYNOPSIS
 
@@ -351,16 +351,19 @@ This method must be called before doing anything else with this object.
 Returns the list of all tasks involving the logged in user:
 
     my @tasks = $st->list_tasks();
+    say join("\n", map { $_->name } @tasks); # Output the names of all tasks
 
 By default all tasks are returned, even the completed ones. Passing a false
 value as parameter excludes the completed tasks:
 
     my @active_tasks = $st->list_tasks(0);
 
+See L<WebService::SlimTimer::Task> for the details of the returned objects.
+
 =head2 create_task
 
 Create a new task with the given name and returns the new
-L<WebService::SlimTimer::Tasl> object on success.
+L<WebService::SlimTimer::Task> object on success.
 
     my $task = $st->create_task('Test Task');
     ... Use $task->id with the other methods ...
