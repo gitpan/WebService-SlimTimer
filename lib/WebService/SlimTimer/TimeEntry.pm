@@ -54,7 +54,7 @@ WebService::SlimTimer::TimeEntry - Represents a time entry record in SlimTimer.
 
 =head1 VERSION
 
-version 0.003
+version 0.004
 
 =head1 SYNOPSIS
 

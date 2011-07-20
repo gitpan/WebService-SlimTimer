@@ -20,14 +20,17 @@ use WebService::SlimTimer;
 my ($opt, $usage) = describe_options(
         '%c %o [start-date [end-date]]',
         [ 'task|t=s'    => 'Only report time spent on the specified task.' ],
+        [ 'version'     => 'Output program version and exit.' ],
         [ 'help'        => 'Print usage message and exit.' ]
     );
 
-print($usage->text), exit if $opt->help;
+print("Usage: $usage"), exit if $opt->help;
+print("WebService::SlimTimer version $WebService::SlimTimer::VERSION.\n"), exit
+    if $opt->version;
 
 my %range;
 if ( @ARGV > 2 ) {
-    die "Too many arguments.\nUsage: " . $usage->text
+    die "Too many arguments.\nUsage: $usage"
 }
 
 if ( @ARGV > 0 ) {
@@ -120,7 +123,7 @@ else { # Report for all tasks.
     sub report_one_task
     {
         my ($name, $duration) = @_;
-        printf "%-40s%4d:%02d:%02d\n", $name, format_time($duration)
+        printf "%-40s%10s\n", $name, format_time($duration)
     }
 
     my $total = 0;
@@ -154,7 +157,7 @@ slimtimer-report - Simple script to report all SlimTimer entries in the given in
 
 =head1 VERSION
 
-version 0.003
+version 0.004
 
 =head1 SYNOPSIS
 

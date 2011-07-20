@@ -39,7 +39,7 @@ WebService::SlimTimer::Task - Represents a single SlimTimer task.
 
 =head1 VERSION
 
-version 0.003
+version 0.004
 
 =head1 SYNOPSIS
 

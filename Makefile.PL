@@ -38,10 +38,9 @@ my %WriteMakefileArgs = (
     'MooseX::Method::Signatures' => '0',
     'MooseX::Types' => '0',
     'MooseX::Types::Moose' => '0',
-    'YAML::XS' => '0',
-    'debug' => '0'
+    'YAML::XS' => '0'
   },
-  'VERSION' => '0.003',
+  'VERSION' => '0.004',
   'test' => {
     'TESTS' => 't/*.t'
   }
