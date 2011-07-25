@@ -32,4 +32,4 @@ requires:
   MooseX::Types: 0
   MooseX::Types::Moose: 0
   YAML::XS: 0
-version: 0.004
+version: 0.005
